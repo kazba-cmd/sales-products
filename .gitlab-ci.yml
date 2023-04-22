@@ -1,0 +1,48 @@
+stages:
+  - prepare
+  - build
+  - deploy
+  - notify
+prepare:
+  stage: prepare
+  tags:
+    - sales
+  script:
+    - sudo chmod -R 757 /var/www/html
+    - echo "prepare yarn"
+    - curl -sL https://deb.nodesource.com/setup_lts.x | sudo bash -
+    - sudo apt-get install -y nodejs
+    - curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+    - echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+    - sudo apt update
+    - sudo apt install -y yarn
+    - echo "prepare successful"
+build:
+  stage: build
+  tags:
+    - sales
+  script:
+    - echo "Building deploy package"
+    - yarn install
+    - CI=false yarn build
+    - echo "Build successful"
+  artifacts:
+    expire_in: 1 hour
+    paths:
+      - build
+deploy_production:
+  stage: deploy
+  tags:
+    - sales
+  script:
+    - echo "Deploying to server"
+    - cp -rv build/* /var/www/html
+    - echo "Deployed"
+    - sh ci-notify.sh ✅
+  only:
+    - master
+notify_error:
+  stage: notify
+  script:
+  - sh ci-notify.sh ❌
+  when: on_failure
